@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 
 setup(
-    name='eajiraslacker',
+    name='jiraslacker',
     version='0.1',
     include_package_data=True,
     packages=find_packages(),
@@ -13,9 +13,10 @@ setup(
         'gevent',
         'PyStaticConfiguration',
         'PyYAML',
+        'dataset',
     ],
     entry_points='''
     [console_scripts]
-    eajiraslacker=eajiraslacker:serve
+    jiraslacker=jiraslacker:serve
     '''
 )
