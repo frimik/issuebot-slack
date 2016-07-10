@@ -1,15 +1,23 @@
 from gevent import monkey; monkey.patch_all()  # noqa
-import os
 from flask import Flask, request, Response
-import staticconf
 import click
+from config import SLACK_WEBHOOK_SECRET
+from slacker import JiraServer, JiraSlacker
+import logging
 
-app_config = 'eajiraslacker.yaml'
-staticconf.YamlConfiguration(app_config)
+logger = logging.getLogger(__name__)
 
-SLACK_WEBHOOK_SECRET = os.environ.get('SLACK_WEBHOOK_SECRET',
-                                      staticconf.read_string('slack.secret'))
-app = Flask(__name__)
+logging.basicConfig(level=logging.INFO)
+
+logger.info('Starting up Flask...')
+
+
+class FlaskApp(Flask):
+    def __init__(self, import_name):
+        super(FlaskApp, self).__init__(import_name)
+        JiraServer.init_caches()
+
+app = FlaskApp(__name__)
 
 
 @app.route('/', methods=['GET'])
@@ -25,6 +33,7 @@ def inbound():
         text = request.form.get('text')
         inbound_message = username + " in " + channel + " says: " + text
         click.echo(inbound_message)
+        response = JiraSlacker.process(text)
     return Response(), 200
 
 
