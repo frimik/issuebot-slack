@@ -1,0 +1,8 @@
+---
+# the configuration for jiraslacker
+
+slack:
+  secret: yoursecret
+
+db:
+  url: sqlite:///jiraslacker.db

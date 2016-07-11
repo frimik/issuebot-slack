@@ -4,6 +4,7 @@ from config import JIRA_USERNAME, JIRA_PASSWORD, DATABASE_URL
 import dataset
 import re
 import logging
+from slackformatter import SlackFormatter
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +103,13 @@ class JiraSlacker(object):
     @classmethod
     def process(cls, text):
         issue_keys = re.findall(r'\b(([A-Z]{1,4})\-(\d+))\b', text)
+        response_type = 'ephemeral'
+        if text.endswith('public') or text.startswith('public'):
+            response_type = 'in_channel'
+        else:
+            response_type = 'ephemeral'
         logger.info('Incoming issue keys: %s', issue_keys)
+        issues = []
         for (issue_key, project_key, issue_num) in issue_keys:
             matching_jira_servers = [s for s in JiraServer.server_list()
                                      if project_key in s.project_keys]
@@ -111,11 +118,16 @@ class JiraSlacker(object):
                 issue = server.issue(
                     issue_key, fields='summary,status,issuetype'
                 )
-                logging.info(
-                    '%s (%s): *%s* %s - %s',
+                issues.append(issue)
+                issue_info = '{0} ({1}): *{2}* {3} - {4}'.format(
                     issue, issue.fields.issuetype, issue.fields.status,
                     issue.fields.summary, issue.permalink()
                 )
+                logging.info(issue_info)
+
+        return SlackFormatter(
+            issues,
+            response_type=response_type).format_response()
 
 
 def main():
@@ -128,7 +140,8 @@ def main():
     projects = jira.projects()
 
     keys = sorted([project.key for project in projects])
-#
+    print(keys)
+
 #    issue = jira.issue('UO-53')
 #
 #    import re

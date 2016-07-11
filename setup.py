@@ -14,6 +14,7 @@ setup(
         'PyStaticConfiguration',
         'PyYAML',
         'dataset',
+        'requests-cache',
     ],
     entry_points='''
     [console_scripts]
