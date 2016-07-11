@@ -1,4 +1,4 @@
-from jiraslacker import app
+from jiraslacker.app import app
 from flask import request, Response, jsonify
 from config import SLACK_WEBHOOK_SECRET
 from jiraslacker.slacker import JiraSlacker

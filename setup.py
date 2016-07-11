@@ -1,5 +1,8 @@
+import os
 from setuptools import setup, find_packages
 
+version_file = open(os.path.join('jiraslacker', 'VERSION'))
+version = version_file.read().strip()
 
 setup(
     name='jiraslacker',
@@ -18,6 +21,6 @@ setup(
     ],
     entry_points='''
     [console_scripts]
-    jiraslacker=jiraslacker:run
+    jiraslacker=jiraslacker.app:run
     '''
 )
