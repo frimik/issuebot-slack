@@ -1,4 +1,3 @@
-
 class SlackFormatter(object):
 
     """Formats Slack response messages"""

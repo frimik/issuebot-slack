@@ -1,4 +1,5 @@
 from __future__ import print_function
+import gevent
 from jira import JIRA
 from config import JIRA_USERNAME, JIRA_PASSWORD, DATABASE_URL
 import dataset
@@ -101,33 +102,48 @@ class JiraSlacker(object):
         """TODO: to be defined1. """
 
     @classmethod
-    def process(cls, text):
+    def process_issue_key(cls, issue_key):
+        issues = []
+        (issue_key, project_key, issue_num) = list(issue_key)
+        matching_jira_servers = [s for s in JiraServer.server_list()
+                                 if project_key in s.project_keys]
+        logger.info('Matching JIRA servers: %s', matching_jira_servers)
+        for server in matching_jira_servers:
+            issue = server.issue(
+                issue_key, fields='summary,status,issuetype'
+            )
+            issues.append(issue)
+            issue_info = '{0} ({1}): *{2}* {3} - {4}'.format(
+                issue, issue.fields.issuetype, issue.fields.status,
+                issue.fields.summary, issue.permalink()
+            )
+            logger.info(issue_info)
+        return(issues)
+
+    @classmethod
+    def _process(cls, text):
         issue_keys = re.findall(r'\b(([A-Z]{1,4})\-(\d+))\b', text)
         response_type = 'ephemeral'
         if text.endswith('public') or text.startswith('public'):
             response_type = 'in_channel'
         else:
             response_type = 'ephemeral'
+
         logger.info('Incoming issue keys: %s', issue_keys)
         issues = []
-        for (issue_key, project_key, issue_num) in issue_keys:
-            matching_jira_servers = [s for s in JiraServer.server_list()
-                                     if project_key in s.project_keys]
-            logging.info('Matching JIRA servers: %s', matching_jira_servers)
-            for server in matching_jira_servers:
-                issue = server.issue(
-                    issue_key, fields='summary,status,issuetype'
-                )
-                issues.append(issue)
-                issue_info = '{0} ({1}): *{2}* {3} - {4}'.format(
-                    issue, issue.fields.issuetype, issue.fields.status,
-                    issue.fields.summary, issue.permalink()
-                )
-                logging.info(issue_info)
+        for issue_key in issue_keys:
+            greenlets = [gevent.spawn(cls.process_issue_key, issue_key)]
 
+        gevent.joinall(greenlets)
+        for greenlet in greenlets:
+            issues.extend(greenlet.value)
         return SlackFormatter(
             issues,
             response_type=response_type).format_response()
+
+    @classmethod
+    def process(cls, text):
+        gevent.spawn(cls._process, text)
 
 
 def main():

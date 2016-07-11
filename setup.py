@@ -18,6 +18,6 @@ setup(
     ],
     entry_points='''
     [console_scripts]
-    jiraslacker=jiraslacker:serve
+    jiraslacker=jiraslacker:run
     '''
 )
