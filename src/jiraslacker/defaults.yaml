@@ -1,0 +1,7 @@
+---
+# the configuration for jiraslacker
+flask_host: 127.0.0.1
+slack_secret: secret
+database_url: "sqlite:///jiraslacker.db"
+jira_username: jira
+jira_password: password
