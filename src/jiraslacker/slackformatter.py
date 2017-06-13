@@ -1,5 +1,4 @@
 class SlackFormatter(object):
-
     """Formats Slack response messages"""
 
     def __init__(self, issues=[], response_type="ephemeral", detailed=False):
@@ -32,3 +31,18 @@ class SlackFormatter(object):
             return '*{0}* ({1}): `{2}` {3} - {4}'.format(
                 issue.key, issue.fields.issuetype, issue.fields.status,
                 issue.fields.summary, issue.permalink())
+
+    @staticmethod
+    def object_to_message(obj):
+        if isinstance(obj, list):
+            return SlackFormatter.format_message("\n".join(obj))
+        elif isinstance(obj, str):
+            return SlackFormatter.format_message(obj)
+
+    @staticmethod
+    def format_message(text):
+        _response_dict = {
+            'response_type': 'ephemeral',
+            'text': text,
+        }
+        return _response_dict

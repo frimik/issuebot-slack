@@ -38,34 +38,58 @@ class SlashCommand(object):
         for k, v in form_dict.items():
             setattr(self, k, v)
 
+    def process(self):
+        return self.parse_command()
+
+    def list_servers(self, args):
+        servers = [str(s) for s in JiraServer.server_list()]
+        return SlackFormatter.object_to_message(servers)
+
+    def add_server(self, args):
+        server = JiraServer(
+            args.server_url,
+        ).save()
+        return SlackFormatter.object_to_message("Added server: {server}".format(server=server))
+
     def parse_command(self):
-        self.parse_command(self.text)
+        return self.parse_args(shlex.split(self.text))
+
+    def parse_args(self, argv):
+        parser = SlashCommand.get_parser(self.command)
+        try:
+            args = parser.parse_args(argv)
+        except SystemExit:
+            return False
+
+        if 'func' in args:
+            return args.func(self, args)
+        else:
+            help_string = parser.format_help()
+            return {'response_type': 'ephemeral',
+                    'text': help_string}
 
     @staticmethod
-    def parse_command(text):
-        SlashCommand.parse_args(shlex.split(text))
-
-    @staticmethod
-    def server_list():
-        return JiraServer.server_list()
-
-    @staticmethod
-    def parse_args(argv):
-        parser = SlashCommand.get_parser()
-        args = parser.parse_args(argv)
-        if 'command' in args:
-            args.command()
-
-    @staticmethod
-    def get_parser():
-        parser = argparse.ArgumentParser()
-
+    def get_parser(prog='/jira'):
+        parser = argparse.ArgumentParser(prog=prog)
         subparsers = parser.add_subparsers()
 
-        server_parser = subparsers.add_parser('server', aliases=['servers'])
-        server_subparser = parser.add_subparsers()
-        server_subparser.add_parser('list')
-        server_subparser.set_defaults(command=SlashCommand.server_list)
+        list_group = subparsers.add_parser('list')
+        add_group = subparsers.add_parser('add')
+        update_group = subparsers.add_parser('update')
+        delete_group = subparsers.add_parser('delete')
+
+        subparsers = list_group.add_subparsers()
+        server_list = subparsers.add_parser('server', aliases=['servers'])
+        server_list.set_defaults(func=SlashCommand.list_servers)
+
+        subparsers = add_group.add_subparsers()
+        server_add = subparsers.add_parser('server')
+        server_add.add_argument('--server-url')
+        server_add.add_argument('--user', '--username')
+        server_add.add_argument('--pass', '--password')
+        server_add.set_defaults(func=SlashCommand.add_server)
+
+        return parser
 
 
 class JiraSlacker(object):
@@ -76,9 +100,14 @@ class JiraSlacker(object):
 
     @classmethod
     def process_request(cls, request):
-        slash_command = SlashCommand(request.form)
+        response = SlashCommand(request.form).process()
+        if not response:
+            return cls.lookup_issues(request)
+        return response
 
-        greenlet = gevent.spawn(cls._process, text)
+    @classmethod
+    def lookup_issues(cls, request):
+        greenlet = gevent.spawn(cls._process, request.form.get('text'))
         gevent.joinall([greenlet], timeout=3)
         return greenlet.value
 

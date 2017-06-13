@@ -44,7 +44,10 @@ class JiraServer(JIRA, Base):
             server, basic_auth=self.basic_auth)
 
     def __str__(self):
-        return '%s (Username: %s)' % (self.server, self.username)
+        if self.id:
+            return '%d: %s (Username: %s)' % (self.id, self.server, self.username)
+        else:
+            return 'Unpersisted: %s (Username: %s)' % (self.server, self.username)
 
     def __repr__(self):
         return '<jiraslacker %s(%s) at %s> (Username: %s) Project Keys: %s' % (
@@ -59,6 +62,8 @@ class JiraServer(JIRA, Base):
         db.session.add(self)
         logger.info('Persisting server to database: %s', self)
         db.session.commit()
+        self.cache_project_keys()
+        self.cache_server_list()
         return self
 
     def cache_project_keys(self):

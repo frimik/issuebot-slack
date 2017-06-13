@@ -18,7 +18,6 @@ def inbound():
     text = request.form.get('text')
     inbound_message = username + " in " + channel + " says: " + text
     app.logger.info(inbound_message)
-    app.logger.info(request.form)
     response = JiraSlacker.process_request(request)
     return jsonify(response)
 
