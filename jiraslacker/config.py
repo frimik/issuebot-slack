@@ -12,3 +12,5 @@ JIRA_PASSWORD = os.environ.get('JIRA_PASSWORD',
                                staticconf.read_string('jira.password'))
 DATABASE_URL = os.environ.get('DATABASE_URL',
                               staticconf.read_string('db.url'))
+SLACK_BOT_TOKEN = os.environ.get('SLACK_BOT_TOKEN',
+                                 staticconf.read_string('slack.bot_token'))

@@ -1,3 +1,8 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 class SlackFormatter(object):
 
     """Formats Slack response messages"""
@@ -18,10 +23,12 @@ class SlackFormatter(object):
 
     def format_issues(self):
         _formatted_issues = []
-        for issue in self.issues:
+        # Looks nicer if issues are returned sorted by key.
+        for issue in sorted(self.issues, key=lambda i:  i.key):
             _formatted_issues.append(self.format_issue(
                 issue, detailed=self.detailed)
             )
+
         return "\n".join(_formatted_issues)
 
     @classmethod

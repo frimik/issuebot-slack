@@ -18,6 +18,7 @@ setup(
         'PyYAML',
         'dataset',
         'requests-cache',
+        'slackclient',
     ],
     entry_points='''
     [console_scripts]

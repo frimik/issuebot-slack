@@ -1,5 +1,6 @@
 from __future__ import print_function
 import gevent
+import random
 from jira import JIRA
 from config import JIRA_USERNAME, JIRA_PASSWORD, DATABASE_URL
 import dataset
@@ -15,6 +16,7 @@ db = dataset.connect(DATABASE_URL)
 class JiraServer(JIRA):
 
     __server_list = []
+    __init_done = False
     __table_name = 'servers'
     __table = db[__table_name]
     __columns = ['server', 'username', 'password']
@@ -78,6 +80,7 @@ class JiraServer(JIRA):
         _servers = cls.cache_server_list()
         for _s in _servers:
             _s.cache_project_keys()
+        cls.__init_done = True
 
     @classmethod
     def cache_server_list(cls):
@@ -91,7 +94,67 @@ class JiraServer(JIRA):
 
     @classmethod
     def server_list(cls):
+        if not cls.__init_done:
+            cls.init_caches()
         return cls.__server_list
+
+
+class SlashCommand(object):
+    """SlashCommand: https://api.slack.com/slash-commands """
+
+    def __init__(self):
+        self.command = None
+        self.channel_id = None
+        self.channel_name = None
+        self.user_name = None
+        self.user_id = None
+        self.text = None
+        self.response_url = None
+        self.trigger_id = None
+
+    @classmethod
+    def from_request(cls, request):
+        slash_command = SlashCommand()
+        for parameter in [
+            'command',
+            'channel_id',
+            'channel_name',
+            'user_name',
+            'user_id',
+            'text',
+            'response_url',
+            'trigger_id',
+        ]:
+            setattr(slash_command, parameter, request.form.get(parameter))
+
+        return slash_command
+
+    def process(self):
+        """
+        If a formatted response can be gotten within 2 seconds - return an immediate response.
+        If not, return an empty response here. A delayed response will follow.
+        """
+        # Spawn the async process task
+        task = gevent.spawn(JiraSlacker._process, self.text)
+        # Wait 2 seconds:
+        greenlets = gevent.wait([task], timeout=2)
+        if greenlets:
+            return greenlets[0].value
+        else:
+            # Time out, start a delayed response and return nothing (200)
+            logger.info(
+                "Timed out (2 seconds) - will send a delayed response.")
+            gevent.spawn(self._process_delayed, task)
+            return
+
+    def _process_delayed(self, task):
+        greenlets = gevent.joinall([task])
+        for greenlet in greenlets:
+            response = greenlet.value
+            logger.info("Delayed response: %s", response)
+            logger.info("Response url: %s", self.response_url)
+
+        return
 
 
 class JiraSlacker(object):
@@ -99,15 +162,17 @@ class JiraSlacker(object):
     """Docstring for JiraSlacker. """
 
     def __init__(self):
-        """TODO: to be defined1. """
+        """ not much here """
 
     @classmethod
     def process_issue_key(cls, issue_key):
+        gevent.sleep(random.randrange(0, 3))
         issues = []
         (issue_key, project_key, issue_num) = list(issue_key)
         matching_jira_servers = [s for s in JiraServer.server_list()
                                  if project_key in s.project_keys]
-        logger.info('Matching JIRA servers: %s', matching_jira_servers)
+        logger.debug('Matching JIRA servers: %s', matching_jira_servers)
+
         for server in matching_jira_servers:
             issue = server.issue(
                 issue_key, fields='summary,status,issuetype'
@@ -118,32 +183,39 @@ class JiraSlacker(object):
                 issue.fields.summary, issue.permalink()
             )
             logger.info(issue_info)
+
         return(issues)
 
     @classmethod
     def _process(cls, text):
-        issue_keys = re.findall(r'\b(([A-Z]{1,4})\-(\d+))\b', text)
+        """ Returns a formatted json response containing all matching JIRA issue statuses """
+
+        # Return if no text coming in
+        if not text:
+            return
+
+        issue_keys = re.findall(r'\b(([A-Z]{1,10})\-(\d+))\b', text)
         response_type = 'ephemeral'
+
         if text.endswith('public') or text.startswith('public'):
             response_type = 'in_channel'
-        else:
-            response_type = 'ephemeral'
 
         logger.info('Incoming issue keys: %s', issue_keys)
         issues = []
+        greenlets = []
         for issue_key in issue_keys:
-            greenlets = [gevent.spawn(cls.process_issue_key, issue_key)]
+            logger.info("Spawning lookup for %s", issue_key)
+            greenlets.append(gevent.spawn(cls.process_issue_key, issue_key))
 
-        gevent.joinall(greenlets)
-        for greenlet in greenlets:
-            issues.extend(greenlet.value)
+        objs = gevent.joinall(greenlets)
+        for obj in objs:
+            if obj.value:
+                logger.debug("Issue result: %s", obj.value)
+                issues.extend(obj.value)
+
         return SlackFormatter(
             issues,
             response_type=response_type).format_response()
-
-    @classmethod
-    def process(cls, text):
-        gevent.spawn(cls._process, text)
 
 
 def main():

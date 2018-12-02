@@ -1,4 +1,5 @@
-from gevent import monkey; monkey.patch_all()  # noqa
+from gevent import monkey
+monkey.patch_all()  # noqa
 from flask import Flask
 import click
 from slacker import JiraServer
