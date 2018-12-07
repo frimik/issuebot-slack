@@ -18,7 +18,7 @@ class FlaskApp(Flask):
 
 
 app = FlaskApp(__name__)
-import jiraslacker.views  # noqa
+import issuebot.views  # noqa
 
 
 @click.command()
@@ -29,4 +29,4 @@ def run(host):
     app.init_caches()
     logger.info('Starting up Flask...')
     app.run(debug=True, host=host,
-            extra_files=['jiraslacker.yaml'])
+            extra_files=['issuebot.yaml'])

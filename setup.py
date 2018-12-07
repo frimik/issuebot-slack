@@ -1,11 +1,11 @@
 import os
 from setuptools import setup, find_packages
 
-version_file = open(os.path.join('jiraslacker', 'VERSION'))
+version_file = open(os.path.join('issuebot', 'VERSION'))
 version = version_file.read().strip()
 
 setup(
-    name='jiraslacker',
+    name='issuebot',
     version='0.1',
     include_package_data=True,
     packages=find_packages(),
@@ -22,6 +22,6 @@ setup(
     ],
     entry_points='''
     [console_scripts]
-    jiraslacker=jiraslacker.app:run
+    issuebot=issuebot.app:run
     '''
 )

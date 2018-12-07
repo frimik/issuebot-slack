@@ -1,0 +1,20 @@
+---
+# the configuration for issuebot
+
+slack:
+  secret: hejsan
+  bot_token: xoxb-tok-en
+
+db:
+  url: sqlite:///issuebot.db
+
+# This is just an optional way of getting servers into the bot...
+# The original ideas was to handle these things on Slash Commands...
+# Need to fix a good Internet=>corp API tunnel method first.
+servers: 
+  - server: https://jira.example.com
+    username: jirauser
+    password: jirapassword
+
+bot:
+  information: "For help or information. Talk to @realdonaldtrump in #whitehouse"

@@ -2,7 +2,7 @@ from __future__ import print_function
 import gevent
 import random
 from jira import JIRA
-from config import JIRA_USERNAME, JIRA_PASSWORD, DATABASE_URL
+from config import DATABASE_URL, ISSUE_SERVERS
 import dataset
 import re
 import logging
@@ -33,16 +33,15 @@ class JiraServer(JIRA):
 
         if username is not None and password is not None:
             self.basic_auth = (self.username, self.password)
-        self.jira = super(JiraServer, self).__init__(
+        self.jira = super(self.__class__, self).__init__(
             server, basic_auth=self.basic_auth
         )
 
     def __str__(self):
-        return '%s(%s)' % (self.__class__.__name__,
-                           self.server)
+        return 'Server: {0!s}, Keys: {1!s}'.format(self.server, map(str, self.project_keys))
 
     def __repr__(self):
-        return '<jiraslacker %s(%s) at %s> Project Keys: %s' % (
+        return '<issuebot %s(%s) at %s> Project Keys: %s' % (
             self.__class__.__name__,
             self.server,
             id(self),
@@ -135,7 +134,7 @@ class SlashCommand(object):
         If not, return an empty response here. A delayed response will follow.
         """
         # Spawn the async process task
-        task = gevent.spawn(JiraSlacker._process, self.text)
+        task = gevent.spawn(IssueBot._process, self.text)
         # Wait 2 seconds:
         greenlets = gevent.wait([task], timeout=2)
         if greenlets:
@@ -157,9 +156,9 @@ class SlashCommand(object):
         return
 
 
-class JiraSlacker(object):
+class IssueBot(object):
 
-    """Docstring for JiraSlacker. """
+    """Docstring for IssueBot. """
 
     def __init__(self):
         """ not much here """
@@ -187,6 +186,10 @@ class JiraSlacker(object):
         return(issues)
 
     @classmethod
+    def server_list(cls):
+        return JiraServer.server_list()
+
+    @classmethod
     def _process(cls, text):
         """ Returns a formatted json response containing all matching JIRA issue statuses """
 
@@ -196,9 +199,6 @@ class JiraSlacker(object):
 
         issue_keys = re.findall(r'\b(([A-Z]{1,10})\-(\d+))\b', text)
         response_type = 'ephemeral'
-
-        if text.endswith('public') or text.startswith('public'):
-            response_type = 'in_channel'
 
         logger.info('Incoming issue keys: %s', issue_keys)
         issues = []
@@ -213,22 +213,25 @@ class JiraSlacker(object):
                 logger.debug("Issue result: %s", obj.value)
                 issues.extend(obj.value)
 
-        return SlackFormatter(
-            issues,
-            response_type=response_type).format_response()
+        if issues:
+            return SlackFormatter(
+                issues,
+                response_type=response_type).format_response()
+
+        return None
 
 
 def main():
 
-    jira = JiraServer('https://jira.dice.se',
-                      JIRA_USERNAME, JIRA_PASSWORD)
-    jira.save()
+    for server in ISSUE_SERVERS:
+        jira = JiraServer(server['server'],
+                          server['username'], server['password'])
+        jira.save()
+        jira.cache_project_keys()
 
-    jira.cache_project_keys()
-    projects = jira.projects()
-
-    keys = sorted([project.key for project in projects])
-    print(keys)
+        projects = jira.projects()
+        keys = sorted([project.key for project in projects])
+        print(keys)
 
 #    issue = jira.issue('UO-53')
 #

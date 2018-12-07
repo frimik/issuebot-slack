@@ -1,7 +1,7 @@
-from jiraslacker.app import app
+from issuebot.app import app
 from flask import request, Response, jsonify
 from config import SLACK_WEBHOOK_SECRET
-from jiraslacker.slacker import JiraSlacker, SlashCommand
+from issuebot.slacker import IssueBot, SlashCommand
 
 
 @app.route('/slack/jira', methods=['POST'])
